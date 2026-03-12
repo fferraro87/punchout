@@ -86,3 +86,10 @@ type urlOpenedinBrowserMsg struct {
 	url string
 	err error
 }
+type issueTransitionedOnJIRA struct {
+	issueKey string
+	err      error
+}
+type newIssueReadyToTrack struct {
+	issueKey string
+}

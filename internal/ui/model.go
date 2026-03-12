@@ -29,13 +29,14 @@ const (
 type stateView uint
 
 const (
-	issueListView    stateView = iota // shows issues
-	wLView                            // shows worklogs that aren't yet synced
-	syncedWLView                      // shows worklogs that are synced
-	editActiveWLView                  // edit the active worklog
-	saveActiveWLView                  // finish the active worklog
-	wlEntryView                       // for saving manual worklog, or for updating a saved worklog
+	issueListView     stateView = iota // shows issues
+	wLView                             // shows worklogs that aren't yet synced
+	syncedWLView                       // shows worklogs that are synced
+	editActiveWLView                   // edit the active worklog
+	saveActiveWLView                   // finish the active worklog
+	wlEntryView                        // for saving manual worklog, or for updating a saved worklog
 	helpView
+	estimateEntryView                  // --- NUOVA SCHERMATA PER L'ESTIMATE ---
 )
 
 type trackingFocussedField uint
@@ -77,6 +78,7 @@ type Model struct {
 	activeIssueComment    *string
 	trackingInputs        []textinput.Model
 	trackingFocussedField trackingFocussedField
+	estimateInput         textinput.Model // --- NUOVO CAMPO DI TESTO ---
 	helpVP                viewport.Model
 	helpVPReady           bool
 	lastChange            dBChange

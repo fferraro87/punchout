@@ -39,8 +39,9 @@ func (m Model) View() tea.View {
 	}
 
 	if m.issuesFetched {
+		var trackingSinceMsg string
 		if m.activeIssue != "" {
-			var issueSummaryMsg, trackingSinceMsg string
+			var issueSummaryMsg string
 			issue, ok := m.issueMap[m.activeIssue]
 			if ok {
 				issueSummaryMsg = fmt.Sprintf("(%s)", utils.Trim(issue.Summary, 50))
@@ -230,6 +231,29 @@ func (m Model) View() tea.View {
 		for i := 0; i < m.terminalHeight-26; i++ {
 			content += "\n"
 		}
+
+	// --- NUOVA SCHERMATA PER INSERIRE L'ESTIMATE ---
+	case estimateEntryView:
+		content = fmt.Sprintf(
+			`
+  %s
+
+  %s
+
+  %s
+
+  %s
+`,
+			workLogEntryHeadingStyle.Render("Transition to To Do/Estimate"),
+			formContextStyle.Render("Enter Original Estimate (eg. 3w 4d 12h):"),
+			m.estimateInput.View(),
+			formSubmitHelp,
+		)
+		for i := 0; i < m.terminalHeight-12; i++ {
+			content += "\n"
+		}
+	// ----------------------------------------------
+
 	case helpView:
 		if !m.helpVPReady {
 			content = "\n  Initializing..."

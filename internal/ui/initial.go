@@ -34,6 +34,13 @@ func InitialModel(db *sql.DB, jiraSvc svc.Jira, jiraCfg d.JiraConfig, debug bool
 	trackingInputs[entryComment].CharLimit = 255
 	trackingInputs[entryComment].SetWidth(60)
 
+	// --- INIZIALIZZAZIONE NUOVO CAMPO ESTIMATE ---
+	estimateInput := textinput.New()
+	estimateInput.Placeholder = "es. 3w 4d 12h"
+	estimateInput.CharLimit = 50
+	estimateInput.SetWidth(40)
+	// ---------------------------------------------
+
 	m := Model{
 		db:                db,
 		jiraSvc:           jiraSvc,
@@ -45,6 +52,7 @@ func InitialModel(db *sql.DB, jiraSvc svc.Jira, jiraCfg d.JiraConfig, debug bool
 		syncedWorklogList: list.New(syncedWorklogListItems, newItemDelegate(lipgloss.Color(syncedWorklogListColor)), listWidth, 0),
 		showHelpIndicator: true,
 		trackingInputs:    trackingInputs,
+		estimateInput:     estimateInput, // Aggiunto al modello
 		debug:             debug,
 	}
 	m.issueList.Title = "fetching..."

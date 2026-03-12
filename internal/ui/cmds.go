@@ -260,3 +260,40 @@ func openURLInBrowser(url string) tea.Cmd {
 		return urlOpenedinBrowserMsg{url: url, err: err}
 	}
 }
+
+// --- MODIFICA PUNCHOUT: COMANDO PER TRANSIZIONE JIRA ---
+func (m Model) transitionIssueOnJira(issueKey string) tea.Cmd {
+	return func() tea.Msg {
+		// "291" è il transition ID che hai trovato
+		// L'ideale sarebbe prenderlo da m.jiraCfg, ma per ora lo hardcodiamo o usiamo
+		// se lo hai aggiunto alla struct Config in domain.go
+		err := m.jiraSvc.TransitionIssue(context.TODO(), issueKey, "291")
+		
+		return issueTransitionedOnJIRA{
+			issueKey: issueKey,
+			err:      err,
+		}
+	}
+}
+// --- FINE MODIFICA ---
+
+// --- MODIFICA PUNCHOUT: SEQUENZA TRANSIZIONI ---
+func (m *Model) processNewIssueTracking(issueKey string, estimate string) tea.Cmd {
+	return func() tea.Msg {
+		// 1. Passaggio a "To Do/Estimate" (ID "311")
+		err := m.jiraSvc.TransitionIssueWithEstimate(context.TODO(), issueKey, "311", estimate)
+		if err != nil {
+			return issueTransitionedOnJIRA{issueKey: issueKey, err: err}
+		}
+
+		// 2. Passaggio a "In Progress" (ID "291")
+		err = m.jiraSvc.TransitionIssue(context.TODO(), issueKey, "291")
+		if err != nil {
+			return issueTransitionedOnJIRA{issueKey: issueKey, err: err}
+		}
+
+		// Se tutto è andato bene, lancia il segnale per far partire il timer
+		return newIssueReadyToTrack{issueKey: issueKey}
+	}
+}
+// ------------------------------------------------

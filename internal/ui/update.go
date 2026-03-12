@@ -2,9 +2,11 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	d "github.com/dhth/punchout/internal/domain"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -36,6 +38,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				ret = true
 			case wlEntryView:
 				saveCmd = m.getCmdToSaveOrUpdateWL()
+				ret = true
+			case estimateEntryView: // --- INVIO DA MODALE ESTIMATE ---
+				saveCmd = m.getCmdToSubmitEstimateAndStartTracking()
 				ret = true
 			}
 			if saveCmd != nil {
@@ -97,12 +102,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// --- AGGIORNAMENTO CAMPI DI TESTO ---
 	switch m.activeView {
 	case editActiveWLView, saveActiveWLView, wlEntryView:
 		for i := range m.trackingInputs {
 			m.trackingInputs[i], cmd = m.trackingInputs[i].Update(msg)
 			cmds = append(cmds, cmd)
 		}
+		return m, tea.Batch(cmds...)
+	case estimateEntryView: // Modale dell'estimate
+		m.estimateInput, cmd = m.estimateInput.Update(msg)
+		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
 	}
 
@@ -200,10 +210,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			switch m.activeView {
 			case issueListView:
+				issue, ok := m.issueList.SelectedItem().(*d.Issue)
+				if !ok {
+					break
+				}
+
+				isStarting := !m.trackingActive
+				
+				// --- MODIFICA PUNCHOUT: CONTROLLO STATO "NEW" ---
+				// Uso TrimSpace per sicurezza contro gli spazi nascosti
+				status := strings.TrimSpace(issue.Status)
+				if isStarting && strings.EqualFold(status, "New") {
+					m.activeView = estimateEntryView
+					m.estimateInput.Focus()
+					m.estimateInput.SetValue("")
+					break // Usciamo dallo switch e NON avviamo ancora il timer!
+				}
+				// ------------------------------------------------
+				
 				handleCmd := m.getCmdToToggleTracking()
 				if handleCmd != nil {
 					cmds = append(cmds, handleCmd)
 				}
+				
+				if isStarting {
+					transitionCmd := m.getCmdToTransitionIssueToInProgress()
+					if transitionCmd != nil {
+						cmds = append(cmds, transitionCmd)
+					}
+				}
+
 			case wLView:
 				syncCmds := m.getCmdToSyncWLToJIRA()
 				if len(syncCmds) > 0 {
@@ -227,6 +263,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		m.handleWindowResizing(msg)
+		
+	// --- SE HA FINITO IL DOPPIO SALTO DI STATO, AVVIA IL TIMER ---
+	case newIssueReadyToTrack:
+		m.message = "Transitions successful! Starting timer..."
+		cmds = append(cmds, m.getCmdToStartTracking())
+	// -------------------------------------------------------------
+
+	case issueTransitionedOnJIRA:
+		if msg.err != nil {
+			m.message = fmt.Sprintf("Error transitioning issue %s: %v", msg.issueKey, msg.err)
+			m.messages = append(m.messages, m.message)
+		}
+
 	case issuesFetchedFromJIRA:
 		handleCmd := m.handleIssuesFetchedFromJIRAMsg(msg)
 		if handleCmd != nil {

@@ -129,3 +129,66 @@ func (svc Jira) SyncWLToJIRA(ctx context.Context, entry d.WorklogEntry, comment 
 func (svc Jira) JiraURL() string {
 	return svc.client.BaseURL.String()
 }
+
+// --- NUOVA FUNZIONE AGGIUNTA ---
+// TransitionIssue cambia lo stato del task in Jira usando l'ID di transizione fornito.
+func (svc Jira) TransitionIssue(ctx context.Context, issueKey string, transitionID string) error {
+	// Se l'ID è vuoto, usciamo senza fare nulla per evitare errori su Jira
+	if transitionID == "" {
+		return nil
+	}
+
+	// Passiamo direttamente transitionID (la stringa "291") invece del payload!
+	_, err := svc.client.Issue.DoTransition(ctx, issueKey, transitionID)
+	if err != nil {
+		return fmt.Errorf("impossibile cambiare lo stato del task %s: %w", issueKey, err)
+	}
+
+	return nil
+}
+
+// --- NUOVA FUNZIONE AGGIUNTA ---
+// TransitionIssueWithEstimate cambia stato e aggiorna l'Original Estimate
+func (svc Jira) TransitionIssueWithEstimate(ctx context.Context, issueKey string, transitionID string, estimate string) error {
+	if transitionID == "" {
+		return nil
+	}
+
+	// Creiamo un payload custom che include l'aggiornamento del time tracking
+	payload := map[string]interface{}{
+		"transition": map[string]interface{}{
+			"id": transitionID,
+		},
+		"update": map[string]interface{}{
+			"timetracking": []map[string]interface{}{
+				{
+					"edit": map[string]interface{}{
+						"originalEstimate": estimate,
+					},
+				},
+			},
+		},
+	}
+
+	// Costruiamo l'URL dell'endpoint manualmente
+	apiEndpoint := fmt.Sprintf("rest/api/2/issue/%s/transitions", issueKey)
+	
+	// Creiamo la richiesta usando il client di base
+	req, err := svc.client.NewRequest(ctx, "POST", apiEndpoint, payload)
+	if err != nil {
+		return fmt.Errorf("errore nella creazione della richiesta per %s: %w", issueKey, err)
+	}
+
+	// Eseguiamo la richiesta
+	resp, err := svc.client.Do(req, nil)
+	if err != nil {
+		return fmt.Errorf("errore durante la chiamata a Jira per %s: %w", issueKey, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("jira ha rifiutato la transizione (Status: %d)", resp.StatusCode)
+	}
+
+	return nil
+}

@@ -133,6 +133,8 @@ func (m *Model) handleEscape() bool {
 	case saveActiveWLView:
 		m.activeView = issueListView
 		m.trackingInputs[entryComment].SetValue("")
+	case estimateEntryView: // Ritorno alla lista se premi Esc sull'estimate
+		m.activeView = issueListView
 	case wlEntryView:
 		switch m.worklogSaveType {
 		case worklogInsert:
@@ -524,6 +526,31 @@ func (m *Model) handleWindowResizing(msg tea.WindowSizeMsg) {
 		m.helpVP.SetWidth(msg.Width - vw)
 	}
 }
+
+// --- MODIFICA PUNCHOUT: FUNZIONI PER TRANSIZIONI ---
+func (m *Model) getCmdToTransitionIssueToInProgress() tea.Cmd {
+	issue, ok := m.issueList.SelectedItem().(*d.Issue)
+	if !ok {
+		return nil
+	}
+	return m.transitionIssueOnJira(issue.IssueKey)
+}
+
+func (m *Model) getCmdToSubmitEstimateAndStartTracking() tea.Cmd {
+	issue, ok := m.issueList.SelectedItem().(*d.Issue)
+	if !ok {
+		return nil
+	}
+	estimate := m.estimateInput.Value()
+	
+	// Torna alla lista subito in modo che l'interfaccia non sembri bloccata
+	m.activeView = issueListView
+	m.message = "Eseguendo le transizioni verso In Progress..."
+
+	// Chiama il nuovo comando per la sequenza!
+	return m.processNewIssueTracking(issue.IssueKey, estimate)
+}
+// ----------------------------------------------------
 
 func (m *Model) handleIssuesFetchedFromJIRAMsg(msg issuesFetchedFromJIRA) tea.Cmd {
 	if msg.err != nil {
