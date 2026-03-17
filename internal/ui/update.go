@@ -202,8 +202,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if handleCmd != nil {
 				cmds = append(cmds, handleCmd)
 			}
-
-		case "s":
+                case "s":
 			if !m.issuesFetched {
 				break
 			}
@@ -216,24 +215,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				isStarting := !m.trackingActive
-				
-				// --- MODIFICA PUNCHOUT: CONTROLLO STATO "NEW" ---
-				// Uso TrimSpace per sicurezza contro gli spazi nascosti
 				status := strings.TrimSpace(issue.Status)
+
+				// 1. GESTIONE STATO "NEW" (Doppia transizione)
 				if isStarting && strings.EqualFold(status, "New") {
 					m.activeView = estimateEntryView
 					m.estimateInput.Focus()
 					m.estimateInput.SetValue("")
-					break // Usciamo dallo switch e NON avviamo ancora il timer!
+					break 
 				}
-				// ------------------------------------------------
-				
+
+				// Avvia/Ferma il timer locale
 				handleCmd := m.getCmdToToggleTracking()
 				if handleCmd != nil {
 					cmds = append(cmds, handleCmd)
 				}
 				
-				if isStarting {
+				// 2. GESTIONE TRANSIZIONE A "IN PROGRESS"
+				// Solo se stiamo iniziando E lo stato attuale NON è già "In Progress"
+				if isStarting && !strings.EqualFold(status, "In Progress") {
 					transitionCmd := m.getCmdToTransitionIssueToInProgress()
 					if transitionCmd != nil {
 						cmds = append(cmds, transitionCmd)
